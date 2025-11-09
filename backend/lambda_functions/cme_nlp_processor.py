@@ -18,89 +18,391 @@ logger.setLevel(logging.INFO)
 comprehend_client = boto3.client('comprehend')
 bedrock_client = boto3.client('bedrock-runtime')
 
-# Medical test taxonomy for intent detection
+# Comprehensive Medical Test Taxonomy for CME/IME Detection
+# Based on common physical examination tests in medico-legal contexts
 TEST_TAXONOMY = {
-    'spine': {
-        'keywords': ['spine', 'spinal', 'vertebra', 'vertebrae', 'back'],
+    'range_of_motion': {
+        'keywords': ['range of motion', 'rom', 'flexion', 'extension', 'limited', 'measured in degrees', 'restricted'],
         'patterns': [
-            r'check\s+(?:the\s+)?spine',
-            r'examine\s+(?:the\s+)?back',
-            r'spinal\s+(?:examination|assessment)'
-        ]
-    },
-    'lumbar_rom': {
-        'keywords': ['lumbar', 'lower back', 'range of motion', 'rom', 'flexion', 'extension', 'bend forward', 'bend backward'],
-        'patterns': [
-            r'(?:lumbar|lower\s+back)\s+range\s+of\s+motion',
-            r'(?:forward|backward)\s+(?:flexion|bending)',
-            r'rom\s+test'
-        ]
+            r'range\s+of\s+motion\s+(?:was\s+)?measured',
+            r'(?:flexion|extension)\s+(?:were|was)\s+limited',
+            r'rom\s+(?:is\s+)?restricted',
+            r'limited\s+(?:in\s+)?all\s+planes'
+        ],
+        'category': 'orthopedic',
+        'priority': 'high'
     },
     'straight_leg_raise': {
-        'keywords': ['straight leg', 'slr', 'leg raise', 'lasegue', 'raise your leg'],
+        'keywords': ['straight leg raise', 'slr', 'positive at', 'negative straight', 'lasegue'],
         'patterns': [
-            r'straight\s+leg\s+(?:raise|test)',
-            r'slr\s+test',
-            r'lasegue[\'s]*\s+(?:test|sign)'
-        ]
+            r'straight\s+leg\s+raise\s+(?:was\s+)?positive',
+            r'slr\s+(?:positive|negative)',
+            r'negative\s+straight[-\s]leg\s+raise'
+        ],
+        'category': 'orthopedic',
+        'priority': 'high'
     },
-    'waddells_signs': {
-        'keywords': ['waddell', 'non-organic', 'behavioral', 'non organic'],
+    'cross_straight_leg_raise': {
+        'keywords': ['crossed straight', 'contralateral', 'well leg raise', 'opposite leg'],
         'patterns': [
-            r'waddell[\'s]*\s+(?:signs|test)',
-            r'non[-\s]organic\s+(?:signs|findings)'
-        ]
+            r'crossed\s+straight[-\s]leg\s+raise',
+            r'contralateral\s+slr',
+            r'well\s+leg\s+raise',
+            r'positive\s+(?:well\s+leg|contralateral)'
+        ],
+        'category': 'orthopedic',
+        'priority': 'medium'
     },
-    'cervical_rom': {
-        'keywords': ['cervical', 'neck', 'rotation', 'lateral flexion', 'turn your head', 'neck movement'],
+    'faber_test': {
+        'keywords': ['faber', 'patrick', 'figure-4', 'si joint', 'hip pain'],
         'patterns': [
-            r'cervical\s+(?:range\s+of\s+motion|rom)',
-            r'neck\s+(?:rotation|flexion|movement)',
-            r'turn\s+(?:your\s+)?head'
-        ]
+            r'faber\s+test',
+            r'patrick[\'s]*\s+test',
+            r'figure[-\s]4\s+position'
+        ],
+        'category': 'orthopedic',
+        'priority': 'medium'
     },
-    'gait': {
-        'keywords': ['gait', 'walking', 'ambulation', 'mobility', 'walk', 'heel-to-toe', 'tandem'],
+    'spurlings_test': {
+        'keywords': ['spurling', 'foraminal compression', 'radicular pain', 'neck'],
         'patterns': [
-            r'gait\s+(?:analysis|assessment|test)',
-            r'(?:walk|walking)\s+(?:test|assessment)',
+            r'spurling[\'s]*\s+(?:test|maneuver)',
+            r'foraminal\s+compression',
+            r'radicular\s+pain'
+        ],
+        'category': 'orthopedic',
+        'priority': 'medium'
+    },
+    'drop_arm_test': {
+        'keywords': ['drop arm', 'rotator cuff', 'lower the arm', '90° abduction'],
+        'patterns': [
+            r'drop\s+arm\s+test',
+            r'unable\s+to\s+(?:smoothly\s+)?lower\s+(?:the\s+)?arm',
+            r'arm\s+drops?\s+suddenly'
+        ],
+        'category': 'orthopedic',
+        'priority': 'medium'
+    },
+    'hawkins_kennedy_test': {
+        'keywords': ['hawkins', 'kennedy', 'impingement', 'shoulder pain', 'internally rotate'],
+        'patterns': [
+            r'hawkins[-\s]kennedy\s+test',
+            r'hawkins\s+impingement',
+            r'internal(?:ly)?\s+rotat(?:e|ion)'
+        ],
+        'category': 'orthopedic',
+        'priority': 'medium'
+    },
+    'neer_test': {
+        'keywords': ['neer', 'impingement', 'forward flexion', 'overhead'],
+        'patterns': [
+            r'neer[\'s]*\s+(?:test|sign)',
+            r'neer\s+impingement',
+            r'forced\s+forward\s+flexion'
+        ],
+        'category': 'orthopedic',
+        'priority': 'medium'
+    },
+    'lachman_test': {
+        'keywords': ['lachman', 'acl', 'anterior translation', 'soft endpoint', 'knee'],
+        'patterns': [
+            r'lachman\s+test',
+            r'acl\s+(?:tear|laxity)',
+            r'anterior\s+translation',
+            r'soft\s+endpoint'
+        ],
+        'category': 'orthopedic',
+        'priority': 'medium'
+    },
+    'mcmurray_test': {
+        'keywords': ['mcmurray', 'meniscus', 'click', 'knee', 'joint line'],
+        'patterns': [
+            r'mcmurray[\'s]*\s+test',
+            r'meniscal\s+tear',
+            r'click\s+(?:in\s+)?(?:the\s+)?knee'
+        ],
+        'category': 'orthopedic',
+        'priority': 'medium'
+    },
+    'phalens_test': {
+        'keywords': ['phalen', 'carpal tunnel', 'wrist flexion', 'tingling', 'fingers'],
+        'patterns': [
+            r'phalen[\'s]*\s+(?:test|maneuver)',
+            r'carpal\s+tunnel',
+            r'wrist\s+flexion',
+            r'tingling\s+(?:in\s+)?fingers'
+        ],
+        'category': 'orthopedic',
+        'priority': 'medium'
+    },
+    'tinels_sign': {
+        'keywords': ['tinel', 'tapping', 'nerve', 'tingling', 'pins and needles'],
+        'patterns': [
+            r'tinel[\'s]*\s+sign',
+            r'tapping\s+over\s+(?:the\s+)?(?:median|ulnar)\s+nerve',
+            r'pins\s+and\s+needles'
+        ],
+        'category': 'orthopedic',
+        'priority': 'medium'
+    },
+    'trendelenburg_sign': {
+        'keywords': ['trendelenburg', 'pelvic drop', 'hip abductor', 'one leg'],
+        'patterns': [
+            r'trendelenburg\s+sign',
+            r'pelvic\s+drop',
+            r'standing\s+on\s+one\s+leg'
+        ],
+        'category': 'orthopedic',
+        'priority': 'medium'
+    },
+    'deep_tendon_reflexes': {
+        'keywords': ['deep tendon', 'dtr', 'reflex', 'patellar', 'achilles', 'biceps', 'triceps', '2+', 'brisk', 'absent'],
+        'patterns': [
+            r'deep\s+tendon\s+reflex(?:es)?',
+            r'dtr[s]*',
+            r'(?:patellar|achilles|biceps|triceps)\s+reflex',
+            r'reflex(?:es)?\s+(?:\d\+|brisk|absent|diminished)'
+        ],
+        'category': 'neurological',
+        'priority': 'high'
+    },
+    'babinski_sign': {
+        'keywords': ['babinski', 'plantar response', 'upgoing toe', 'downgoing', 'extensor'],
+        'patterns': [
+            r'babinski\s+sign',
+            r'plantar\s+response',
+            r'(?:upgoing|downgoing)\s+toe',
+            r'extensor\s+plantar'
+        ],
+        'category': 'neurological',
+        'priority': 'medium'
+    },
+    'hoffmanns_sign': {
+        'keywords': ['hoffmann', 'flick', 'middle finger', 'thumb flexion', 'cervical'],
+        'patterns': [
+            r'hoffmann[\'s]*\s+(?:sign|reflex)',
+            r'flick(?:ing)?\s+(?:the\s+)?middle\s+finger'
+        ],
+        'category': 'neurological',
+        'priority': 'medium'
+    },
+    'clonus_test': {
+        'keywords': ['clonus', 'ankle', 'sustained', 'beats', 'rhythmic'],
+        'patterns': [
+            r'clonus\s+(?:present|noted|absent)',
+            r'sustained\s+clonus',
+            r'beats\s+of\s+clonus'
+        ],
+        'category': 'neurological',
+        'priority': 'medium'
+    },
+    'romberg_test': {
+        'keywords': ['romberg', 'balance', 'eyes closed', 'sway', 'proprioception'],
+        'patterns': [
+            r'romberg\s+(?:test|sign)',
+            r'balance\s+with\s+eyes\s+closed',
+            r'increased\s+sway'
+        ],
+        'category': 'neurological',
+        'priority': 'medium'
+    },
+    'light_touch_sensation': {
+        'keywords': ['light touch', 'sensation', 'intact', 'decreased', 'dermatome'],
+        'patterns': [
+            r'light\s+touch\s+sensation',
+            r'sensation\s+(?:is\s+)?intact',
+            r'decreased\s+(?:light\s+)?touch'
+        ],
+        'category': 'sensory',
+        'priority': 'high'
+    },
+    'pinprick_sensation': {
+        'keywords': ['pinprick', 'sharp', 'dull', 'pin sensation', 'discrimination'],
+        'patterns': [
+            r'pinprick\s+sensation',
+            r'sharp[/\s]dull',
+            r'pin\s+sensation',
+            r'sharp[/\s]dull\s+discrimination'
+        ],
+        'category': 'sensory',
+        'priority': 'high'
+    },
+    'vibration_sense': {
+        'keywords': ['vibration', 'tuning fork', 'vibratory', 'great toe', 'malleolus'],
+        'patterns': [
+            r'vibration\s+sense',
+            r'vibratory\s+sensation',
+            r'tuning\s+fork'
+        ],
+        'category': 'sensory',
+        'priority': 'medium'
+    },
+    'proprioception': {
+        'keywords': ['proprioception', 'joint position', 'position sense', 'up or down'],
+        'patterns': [
+            r'proprioception\s+test',
+            r'joint\s+position\s+sense',
+            r'position\s+sense'
+        ],
+        'category': 'sensory',
+        'priority': 'medium'
+    },
+    'gait_observation': {
+        'keywords': ['gait', 'antalgic', 'limping', 'walking', 'stride', 'assistive device'],
+        'patterns': [
+            r'gait\s+(?:was|is)\s+(?:antalgic|normal|abnormal)',
+            r'limp(?:ing)?\s+noted',
+            r'walking\s+(?:with|without)\s+(?:assistive\s+)?device'
+        ],
+        'category': 'functional',
+        'priority': 'high'
+    },
+    'heel_walking': {
+        'keywords': ['heel walk', 'walk on heels', 'dorsiflexor', 'tibialis anterior'],
+        'patterns': [
+            r'heel\s+walk(?:ing)?',
+            r'walk(?:ing)?\s+on\s+heels',
+            r'(?:able|unable)\s+to\s+walk\s+on\s+heels'
+        ],
+        'category': 'functional',
+        'priority': 'high'
+    },
+    'toe_walking': {
+        'keywords': ['toe walk', 'walk on toes', 'plantarflexor', 'calf', 'tiptoes'],
+        'patterns': [
+            r'toe\s+walk(?:ing)?',
+            r'walk(?:ing)?\s+on\s+toes',
+            r'(?:able|unable)\s+to\s+walk\s+on\s+toes',
+            r'tiptoes'
+        ],
+        'category': 'functional',
+        'priority': 'high'
+    },
+    'tandem_gait': {
+        'keywords': ['tandem', 'heel-to-toe', 'balance', 'straight line'],
+        'patterns': [
+            r'tandem\s+(?:gait|walk)',
             r'heel[-\s]to[-\s]toe',
-            r'tandem\s+(?:walk|gait)'
-        ]
+            r'walk(?:ing)?\s+(?:in\s+)?(?:a\s+)?straight\s+line'
+        ],
+        'category': 'functional',
+        'priority': 'medium'
     },
-    'neurological': {
-        'keywords': ['reflex', 'reflexes', 'sensation', 'sensory', 'motor', 'strength', 'muscle strength', 'patellar', 'achilles'],
+    'sit_to_stand': {
+        'keywords': ['sit to stand', 'rise from', 'seated position', 'chair', 'arm support'],
         'patterns': [
-            r'(?:reflex|reflexes)\s+test',
-            r'(?:sensory|sensation)\s+(?:test|examination)',
-            r'motor\s+(?:strength|function)',
-            r'(?:patellar|achilles|bicep|tricep)\s+reflex'
-        ]
+            r'sit[-\s]to[-\s]stand',
+            r'ris(?:e|ing)\s+from\s+(?:seated|chair)',
+            r'(?:needs|uses)\s+arm\s+support'
+        ],
+        'category': 'functional',
+        'priority': 'medium'
     },
-    'palpation': {
-        'keywords': ['palpate', 'palpating', 'feel', 'touch', 'tender', 'tenderness', 'press'],
+    'stair_climb': {
+        'keywords': ['stair', 'climb', 'ascend', 'descend', 'step', 'railing'],
         'patterns': [
-            r'(?:palpate|palpating)\s+(?:the\s+)?(?:spine|back|neck|area)',
-            r'check\s+for\s+tenderness',
-            r'feel\s+(?:the\s+)?(?:spine|muscles)'
-        ]
+            r'stair\s+climb',
+            r'ascend(?:s|ing)?\s+(?:and\s+)?descend',
+            r'step\s+up\s+and\s+down',
+            r'uses?\s+railing'
+        ],
+        'category': 'functional',
+        'priority': 'medium'
     },
-    'orthopedic': {
-        'keywords': ['orthopedic', 'musculoskeletal', 'joint', 'hip', 'knee', 'shoulder', 'ankle'],
+    'squat_and_rise': {
+        'keywords': ['squat', 'rise', 'full squat', 'knee flexion', 'difficulty'],
         'patterns': [
-            r'orthopedic\s+(?:examination|assessment|test)',
-            r'(?:hip|knee|shoulder|ankle)\s+(?:test|examination)',
-            r'joint\s+(?:mobility|function)'
-        ]
+            r'squat\s+(?:and\s+)?rise',
+            r'full\s+squat',
+            r'half[-\s]squat',
+            r'difficulty\s+squatting'
+        ],
+        'category': 'functional',
+        'priority': 'medium'
     },
-    'cognitive': {
-        'keywords': ['memory', 'concentration', 'cognitive', 'mental status', 'orientation', 'recall'],
+    'axial_loading': {
+        'keywords': ['axial loading', 'axial compression', 'downward pressure', 'skull', 'non-organic'],
         'patterns': [
-            r'cognitive\s+(?:test|assessment|function)',
-            r'mental\s+status\s+exam',
-            r'memory\s+test',
-            r'orientation\s+(?:test|assessment)'
-        ]
+            r'axial\s+loading',
+            r'axial\s+compression',
+            r'downward\s+pressure\s+on\s+(?:the\s+)?head',
+            r'non[-\s]organic\s+finding'
+        ],
+        'category': 'simulation',
+        'priority': 'high'
+    },
+    'simulated_rotation': {
+        'keywords': ['simulated rotation', 'en bloc', 'trunk rotation', 'shoulders and pelvis', 'non-organic'],
+        'patterns': [
+            r'simulated\s+rotation',
+            r'en\s+bloc\s+(?:rotation|trunk)',
+            r'rotating?\s+shoulders\s+and\s+pelvis'
+        ],
+        'category': 'simulation',
+        'priority': 'high'
+    },
+    'superficial_tenderness': {
+        'keywords': ['superficial tenderness', 'light touch', 'widespread', 'non-anatomic'],
+        'patterns': [
+            r'superficial\s+tenderness',
+            r'widespread\s+tenderness',
+            r'light\s+touch\s+(?:causes|elicits)\s+pain'
+        ],
+        'category': 'simulation',
+        'priority': 'high'
+    },
+    'non_anatomic_tenderness': {
+        'keywords': ['non-anatomic', 'diffuse', 'broad area', 'not localized'],
+        'patterns': [
+            r'non[-\s]anatomic\s+tenderness',
+            r'diffuse\s+(?:pain|tenderness)',
+            r'broad\s+area'
+        ],
+        'category': 'simulation',
+        'priority': 'high'
+    },
+    'distracted_slr': {
+        'keywords': ['distracted', 'flip test', 'inconsistent', 'seated', 'supine slr'],
+        'patterns': [
+            r'distracted\s+(?:straight\s+leg|slr)',
+            r'flip\s+test',
+            r'inconsistent\s+(?:straight\s+leg|slr)',
+            r'seated\s+(?:vs\s+)?supine'
+        ],
+        'category': 'simulation',
+        'priority': 'high'
+    },
+    'give_way_weakness': {
+        'keywords': ['give-way', 'giveway', 'cogwheel', 'inconsistent effort', 'regional weakness'],
+        'patterns': [
+            r'give[-\s]way\s+weakness',
+            r'cogwheel\s+weakness',
+            r'inconsistent\s+effort',
+            r'regional\s+weakness'
+        ],
+        'category': 'simulation',
+        'priority': 'high'
+    },
+    'hoovers_test': {
+        'keywords': ['hoover', 'downward pressure', 'opposite heel', 'lack of effort'],
+        'patterns': [
+            r'hoover[\'s]*\s+(?:test|sign)',
+            r'downward\s+pressure\s+(?:from\s+)?opposite',
+            r'lack\s+of\s+effort'
+        ],
+        'category': 'simulation',
+        'priority': 'medium'
+    },
+    'manual_muscle_testing': {
+        'keywords': ['manual muscle', 'mmt', 'strength', '5/5', '4/5', 'muscle groups'],
+        'patterns': [
+            r'manual\s+muscle\s+test(?:ing)?',
+            r'mmt',
+            r'strength\s+(?:is\s+)?\d[/]\d',
+            r'\d[/]\d\s+(?:strength|weakness)'
+        ],
+        'category': 'MMT',
+        'priority': 'high'
     }
 }
 

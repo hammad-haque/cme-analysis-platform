@@ -19,49 +19,229 @@ logger.setLevel(logging.INFO)
 s3_client = boto3.client('s3')
 rekognition_client = boto3.client('rekognition')
 
-# Expected motion patterns for different test types
+# Expected motion patterns for different test types - Comprehensive CME/IME Taxonomy
 TEST_MOTION_EXPECTATIONS = {
-    'lumbar_rom': {
-        'expected_movements': ['forward_bend', 'backward_bend', 'lateral_bend', 'rotation'],
+    'range_of_motion': {
+        'expected_movements': ['flexion', 'extension', 'rotation', 'bending'],
         'patient_motion_required': True,
         'examiner_touch': False,
-        'description': 'Patient should bend forward, backward, and side-to-side'
+        'description': 'Examiner measures joint/spinal movements using goniometer or visual estimate'
     },
     'straight_leg_raise': {
-        'expected_movements': ['leg_raise', 'hip_flexion'],
+        'expected_movements': ['leg_raise', 'hip_flexion', 'patient_supine'],
         'patient_motion_required': True,
         'examiner_touch': True,
-        'description': 'Examiner raises patient\'s leg while patient lies supine'
+        'description': 'Examiner passively lifts straight leg while patient lies supine'
     },
-    'cervical_rom': {
-        'expected_movements': ['head_rotation', 'head_flexion', 'head_extension'],
+    'cross_straight_leg_raise': {
+        'expected_movements': ['opposite_leg_raise', 'patient_supine'],
+        'patient_motion_required': True,
+        'examiner_touch': True,
+        'description': 'Examiner raises unaffected leg to elicit contralateral pain'
+    },
+    'faber_test': {
+        'expected_movements': ['hip_flexion', 'abduction', 'external_rotation', 'knee_press'],
+        'patient_motion_required': False,
+        'examiner_touch': True,
+        'description': 'Patient in figure-4 position, examiner presses down on knee'
+    },
+    'spurlings_test': {
+        'expected_movements': ['neck_extension', 'rotation', 'axial_pressure'],
+        'patient_motion_required': False,
+        'examiner_touch': True,
+        'description': 'Examiner extends/rotates neck and applies downward pressure'
+    },
+    'drop_arm_test': {
+        'expected_movements': ['arm_abduction', 'arm_lowering'],
+        'patient_motion_required': True,
+        'examiner_touch': True,
+        'description': 'Patient slowly lowers arm from 90° abduction'
+    },
+    'hawkins_kennedy_test': {
+        'expected_movements': ['shoulder_flexion', 'internal_rotation'],
+        'patient_motion_required': False,
+        'examiner_touch': True,
+        'description': 'Examiner internally rotates shoulder at 90° flexion'
+    },
+    'neer_test': {
+        'expected_movements': ['forward_flexion', 'overhead_reach'],
+        'patient_motion_required': False,
+        'examiner_touch': True,
+        'description': 'Examiner passively forward-flexes arm overhead'
+    },
+    'lachman_test': {
+        'expected_movements': ['knee_flexion', 'anterior_tibial_pull'],
+        'patient_motion_required': False,
+        'examiner_touch': True,
+        'description': 'Examiner pulls tibia forward with knee at 20-30° flexion'
+    },
+    'mcmurray_test': {
+        'expected_movements': ['knee_flexion', 'rotation', 'extension'],
+        'patient_motion_required': False,
+        'examiner_touch': True,
+        'description': 'Examiner rotates and extends knee to test meniscus'
+    },
+    'phalens_test': {
+        'expected_movements': ['wrist_flexion', 'hands_pressed'],
         'patient_motion_required': True,
         'examiner_touch': False,
-        'description': 'Patient rotates and flexes neck in various directions'
+        'description': 'Patient flexes both wrists and holds for 30-60 seconds'
     },
-    'gait': {
-        'expected_movements': ['walking', 'heel_to_toe', 'standing'],
+    'tinels_sign': {
+        'expected_movements': ['tapping', 'percussion'],
+        'patient_motion_required': False,
+        'examiner_touch': True,
+        'description': 'Examiner taps over nerve path'
+    },
+    'trendelenburg_sign': {
+        'expected_movements': ['one_leg_stand', 'pelvic_observation'],
         'patient_motion_required': True,
         'examiner_touch': False,
-        'description': 'Patient walks normally and performs heel-to-toe walking'
+        'description': 'Patient stands on one leg, examiner observes pelvis'
     },
-    'neurological': {
-        'expected_movements': ['limb_movement', 'reflex_test'],
+    'deep_tendon_reflexes': {
+        'expected_movements': ['hammer_tap', 'limb_movement', 'reflex_response'],
         'patient_motion_required': False,
         'examiner_touch': True,
-        'description': 'Examiner tests reflexes using reflex hammer'
+        'description': 'Examiner taps tendons with reflex hammer'
     },
-    'palpation': {
-        'expected_movements': ['examiner_hand_movement'],
+    'babinski_sign': {
+        'expected_movements': ['sole_stroke', 'toe_movement'],
         'patient_motion_required': False,
         'examiner_touch': True,
-        'description': 'Examiner presses along spine or affected area'
+        'description': 'Examiner strokes lateral sole of foot'
     },
-    'spine': {
-        'expected_movements': ['examiner_hand_movement', 'visual_inspection'],
+    'hoffmanns_sign': {
+        'expected_movements': ['finger_flick', 'thumb_flexion'],
         'patient_motion_required': False,
         'examiner_touch': True,
-        'description': 'Examiner inspects and palpates spine'
+        'description': 'Examiner flicks middle finger nail downward'
+    },
+    'clonus_test': {
+        'expected_movements': ['rapid_dorsiflexion', 'rhythmic_contractions'],
+        'patient_motion_required': False,
+        'examiner_touch': True,
+        'description': 'Examiner rapidly dorsiflexes foot and holds'
+    },
+    'romberg_test': {
+        'expected_movements': ['standing', 'eyes_closed', 'balance_observation'],
+        'patient_motion_required': True,
+        'examiner_touch': False,
+        'description': 'Patient stands with eyes closed, examiner observes balance'
+    },
+    'light_touch_sensation': {
+        'expected_movements': ['light_touch', 'cotton_wisp'],
+        'patient_motion_required': False,
+        'examiner_touch': True,
+        'description': 'Examiner tests sensation with cotton or light touch'
+    },
+    'pinprick_sensation': {
+        'expected_movements': ['pin_touch', 'sharp_dull_alternation'],
+        'patient_motion_required': False,
+        'examiner_touch': True,
+        'description': 'Examiner uses pin to test sharp/dull discrimination'
+    },
+    'vibration_sense': {
+        'expected_movements': ['tuning_fork_application', 'vibration_detection'],
+        'patient_motion_required': False,
+        'examiner_touch': True,
+        'description': 'Examiner applies vibrating tuning fork to bony prominences'
+    },
+    'proprioception': {
+        'expected_movements': ['joint_movement', 'position_testing'],
+        'patient_motion_required': False,
+        'examiner_touch': True,
+        'description': 'Examiner moves digit up/down, patient identifies position'
+    },
+    'gait_observation': {
+        'expected_movements': ['walking', 'stride_observation', 'limping'],
+        'patient_motion_required': True,
+        'examiner_touch': False,
+        'description': 'Examiner observes patient walking normally'
+    },
+    'heel_walking': {
+        'expected_movements': ['walking', 'heel_walk', 'toe_lift'],
+        'patient_motion_required': True,
+        'examiner_touch': False,
+        'description': 'Patient walks on heels with toes off ground'
+    },
+    'toe_walking': {
+        'expected_movements': ['walking', 'toe_walk', 'heel_lift'],
+        'patient_motion_required': True,
+        'examiner_touch': False,
+        'description': 'Patient walks on tiptoes with heels off ground'
+    },
+    'tandem_gait': {
+        'expected_movements': ['walking', 'heel_to_toe', 'balance'],
+        'patient_motion_required': True,
+        'examiner_touch': False,
+        'description': 'Patient walks heel-to-toe in straight line'
+    },
+    'sit_to_stand': {
+        'expected_movements': ['rising', 'standing', 'chair_transfer'],
+        'patient_motion_required': True,
+        'examiner_touch': False,
+        'description': 'Patient rises from seated position'
+    },
+    'stair_climb': {
+        'expected_movements': ['stepping', 'climbing', 'descending'],
+        'patient_motion_required': True,
+        'examiner_touch': False,
+        'description': 'Patient steps up and down stairs'
+    },
+    'squat_and_rise': {
+        'expected_movements': ['squatting', 'rising', 'knee_flexion'],
+        'patient_motion_required': True,
+        'examiner_touch': False,
+        'description': 'Patient squats down and stands back up'
+    },
+    'axial_loading': {
+        'expected_movements': ['downward_pressure', 'head_compression'],
+        'patient_motion_required': False,
+        'examiner_touch': True,
+        'description': 'Examiner applies downward pressure on head (Waddell sign)'
+    },
+    'simulated_rotation': {
+        'expected_movements': ['trunk_rotation', 'en_bloc_rotation'],
+        'patient_motion_required': False,
+        'examiner_touch': True,
+        'description': 'Examiner rotates shoulders and pelvis together (Waddell sign)'
+    },
+    'superficial_tenderness': {
+        'expected_movements': ['light_palpation', 'skin_pinching'],
+        'patient_motion_required': False,
+        'examiner_touch': True,
+        'description': 'Examiner lightly palpates skin (Waddell sign)'
+    },
+    'non_anatomic_tenderness': {
+        'expected_movements': ['palpation', 'pressure_application'],
+        'patient_motion_required': False,
+        'examiner_touch': True,
+        'description': 'Examiner applies pressure in non-anatomic pattern (Waddell sign)'
+    },
+    'distracted_slr': {
+        'expected_movements': ['seated_leg_extension', 'supine_slr_comparison'],
+        'patient_motion_required': True,
+        'examiner_touch': False,
+        'description': 'Compare distracted vs formal SLR (Waddell sign)'
+    },
+    'give_way_weakness': {
+        'expected_movements': ['muscle_testing', 'sudden_collapse'],
+        'patient_motion_required': True,
+        'examiner_touch': True,
+        'description': 'Patient suddenly gives way during strength testing (Waddell sign)'
+    },
+    'hoovers_test': {
+        'expected_movements': ['leg_raise', 'opposite_heel_pressure'],
+        'patient_motion_required': True,
+        'examiner_touch': False,
+        'description': 'Check for counter-pressure from opposite heel during leg raise'
+    },
+    'manual_muscle_testing': {
+        'expected_movements': ['resistance_testing', 'limb_movement', 'strength_grading'],
+        'patient_motion_required': True,
+        'examiner_touch': True,
+        'description': 'Examiner applies resistance to test muscle strength'
     }
 }
 
