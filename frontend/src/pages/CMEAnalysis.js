@@ -26,26 +26,23 @@ const CMEAnalysis = () => {
   };
   
   const getStatusBadge = (status) => {
-    const statusColors = {
-      'created': 'bg-blue-100 text-blue-800',
-      'recording_uploaded': 'bg-yellow-100 text-yellow-800',
-      'processing': 'bg-purple-100 text-purple-800',
-      'completed': 'bg-green-100 text-green-800',
-      'error': 'bg-red-100 text-red-800'
+    const statusConfig = {
+      'created': { bg: 'bg-slate-100', text: 'text-slate-700', dot: 'bg-slate-400' },
+      'recording_uploaded': { bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-400' },
+      'processing': { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-400 animate-pulse' },
+      'completed': { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-400' },
+      'error': { bg: 'bg-rose-100', text: 'text-rose-700', dot: 'bg-rose-400' }
     };
     
+    const config = statusConfig[status] || statusConfig['created'];
+    const label = status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+    
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColors[status] || 'bg-gray-100 text-gray-800'}`}>
-        {status.replace('_', ' ').toUpperCase()}
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${config.bg} ${config.text}`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`}></span>
+        {label}
       </span>
     );
-  };
-  
-  const getModeIcon = (mode) => {
-    if (mode === 'Full Record') return '🎥';
-    if (mode === 'Audio Only') return '🎤';
-    if (mode === 'Ephemeral') return '⚡';
-    return '📋';
   };
   
   const filteredSessions = sessions.filter(session => {
@@ -57,50 +54,93 @@ const CMEAnalysis = () => {
     return matchesState && matchesSearch;
   });
   
+  const stats = {
+    total: sessions.length,
+    completed: sessions.filter(s => s.status === 'completed').length,
+    processing: sessions.filter(s => s.status === 'processing').length,
+    pending: sessions.filter(s => s.status === 'created' || s.status === 'recording_uploaded').length
+  };
+  
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="flex justify-between items-center">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {/* Header */}
+      <div className="bg-white border-b border-slate-200/60 backdrop-blur-sm sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                🏥 CME Analysis Platform
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                CME Analysis Platform
               </h1>
-              <p className="text-gray-600">
-                AI-Powered Compulsory Medical Examination Analysis
-              </p>
+              <p className="text-sm text-slate-600 mt-0.5">AI-powered medical examination analysis</p>
             </div>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 transition shadow-lg"
+              className="group relative inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold rounded-lg shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/30 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
             >
-              + New CME Session
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              New Session
             </button>
           </div>
         </div>
+      </div>
+      
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <StatCard 
+            label="Total Sessions" 
+            value={stats.total} 
+            icon="📊"
+            gradient="from-slate-500 to-slate-600"
+          />
+          <StatCard 
+            label="Completed" 
+            value={stats.completed} 
+            icon="✅"
+            gradient="from-emerald-500 to-emerald-600"
+          />
+          <StatCard 
+            label="Processing" 
+            value={stats.processing} 
+            icon="⚙️"
+            gradient="from-blue-500 to-blue-600"
+          />
+          <StatCard 
+            label="Pending" 
+            value={stats.pending} 
+            icon="⏳"
+            gradient="from-amber-500 to-amber-600"
+          />
+        </div>
         
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+        <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200/60 p-5 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                🔍 Search
+              <label className="block text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wide">
+                Search
               </label>
-              <input
-                type="text"
-                placeholder="Search by patient, doctor, or session ID..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                value={filter.search}
-                onChange={(e) => setFilter({ ...filter, search: e.target.value })}
-              />
+              <div className="relative">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Patient, doctor, or session ID..."
+                  className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white"
+                  value={filter.search}
+                  onChange={(e) => setFilter({ ...filter, search: e.target.value })}
+                />
+              </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                📍 State Filter
+              <label className="block text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wide">
+                State
               </label>
               <select
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white"
                 value={filter.state}
                 onChange={(e) => setFilter({ ...filter, state: e.target.value })}
               >
@@ -114,115 +154,98 @@ const CMEAnalysis = () => {
             <div className="flex items-end">
               <button
                 onClick={() => setFilter({ state: '', search: '' })}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                className="w-full px-4 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
               >
-                Clear Filters
+                Clear
               </button>
             </div>
-          </div>
-        </div>
-        
-        {/* Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg p-6 shadow-lg">
-            <div className="text-3xl font-bold mb-2">{sessions.length}</div>
-            <div className="text-blue-100">Total Sessions</div>
-          </div>
-          <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg p-6 shadow-lg">
-            <div className="text-3xl font-bold mb-2">
-              {sessions.filter(s => s.status === 'completed').length}
-            </div>
-            <div className="text-green-100">Completed</div>
-          </div>
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-lg p-6 shadow-lg">
-            <div className="text-3xl font-bold mb-2">
-              {sessions.filter(s => s.status === 'processing').length}
-            </div>
-            <div className="text-purple-100">Processing</div>
-          </div>
-          <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white rounded-lg p-6 shadow-lg">
-            <div className="text-3xl font-bold mb-2">
-              {sessions.filter(s => s.mode === 'Full Record').length}
-            </div>
-            <div className="text-yellow-100">Full Recording</div>
           </div>
         </div>
         
         {/* Sessions List */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="p-6 border-b border-gray-200 bg-gray-50">
-            <h2 className="text-xl font-semibold text-gray-900">CME Sessions</h2>
+        <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200/60 overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/50">
+            <h2 className="text-lg font-semibold text-slate-900">Sessions</h2>
           </div>
           
           {loading ? (
-            <div className="p-12 text-center">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-              <p className="mt-4 text-gray-600">Loading sessions...</p>
+            <div className="p-16 text-center">
+              <div className="inline-block w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+              <p className="mt-4 text-sm text-slate-600">Loading sessions...</p>
             </div>
           ) : filteredSessions.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">
-              <div className="text-6xl mb-4">📋</div>
-              <p className="text-xl">No CME sessions found</p>
+            <div className="p-16 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-100 flex items-center justify-center text-3xl">
+                📋
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">No sessions found</h3>
+              <p className="text-sm text-slate-600 mb-6">Get started by creating your first CME session</p>
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="mt-4 text-indigo-600 hover:text-indigo-800 font-semibold"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
               >
-                Create your first session →
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Create Session
               </button>
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-slate-200">
               {filteredSessions.map((session) => (
                 <div
                   key={session.session_id}
-                  className="p-6 hover:bg-gray-50 transition cursor-pointer"
-                  onClick={() => navigate(`/cme/sessions/${session.session_id}`)}
+                  className="px-6 py-5 hover:bg-slate-50/50 transition-colors cursor-pointer group"
+                  onClick={() => navigate(`/sessions/${session.session_id}`)}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {getModeIcon(session.mode)} {session.patient_name || 'Unnamed Patient'}
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-3">
+                        <h3 className="text-base font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                          {session.patient_name || 'Unnamed Patient'}
                         </h3>
                         {getStatusBadge(session.status)}
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                        <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">
                           {session.state}
                         </span>
                       </div>
                       
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600 mt-3">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
-                          <span className="font-medium">Doctor:</span> {session.doctor_name}
+                          <span className="text-slate-500">Examiner</span>
+                          <p className="font-medium text-slate-900 mt-0.5">{session.doctor_name || 'N/A'}</p>
                         </div>
                         <div>
-                          <span className="font-medium">Date:</span> {session.exam_date || 'Not set'}
+                          <span className="text-slate-500">Exam Date</span>
+                          <p className="font-medium text-slate-900 mt-0.5">{session.exam_date || 'Not set'}</p>
                         </div>
                         <div>
-                          <span className="font-medium">Mode:</span> {session.mode}
+                          <span className="text-slate-500">Mode</span>
+                          <p className="font-medium text-slate-900 mt-0.5">{session.mode || 'N/A'}</p>
                         </div>
                         <div>
-                          <span className="font-medium">Session ID:</span> {session.session_id.substring(0, 12)}...
+                          <span className="text-slate-500">Session ID</span>
+                          <p className="font-mono text-xs text-slate-600 mt-0.5">{session.session_id?.substring(0, 12)}...</p>
                         </div>
                       </div>
                       
                       {session.attorney_name && (
-                        <div className="mt-2 text-sm text-gray-600">
-                          <span className="font-medium">Attorney:</span> {session.attorney_name}
+                        <div className="mt-3 text-sm">
+                          <span className="text-slate-500">Attorney: </span>
+                          <span className="font-medium text-slate-900">{session.attorney_name}</span>
                         </div>
                       )}
                     </div>
                     
-                    <div className="ml-4">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/cme/sessions/${session.session_id}`);
-                        }}
-                        className="text-indigo-600 hover:text-indigo-800 font-medium"
-                      >
-                        View Details →
-                      </button>
-                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/sessions/${session.session_id}`);
+                      }}
+                      className="flex-shrink-0 px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
+                    >
+                      View →
+                    </button>
                   </div>
                 </div>
               ))}
@@ -231,7 +254,6 @@ const CMEAnalysis = () => {
         </div>
       </div>
       
-      {/* Create Session Modal */}
       {showCreateModal && (
         <CreateSessionModal
           onClose={() => setShowCreateModal(false)}
@@ -244,6 +266,17 @@ const CMEAnalysis = () => {
     </div>
   );
 };
+
+const StatCard = ({ label, value, icon, gradient }) => (
+  <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200/60 p-5">
+    <div className="flex items-center justify-between mb-2">
+      <span className="text-2xl">{icon}</span>
+      <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${gradient} opacity-10`}></div>
+    </div>
+    <div className="text-2xl font-bold text-slate-900 mb-1">{value}</div>
+    <div className="text-xs font-medium text-slate-600 uppercase tracking-wide">{label}</div>
+  </div>
+);
 
 const CreateSessionModal = ({ onClose, onSuccess }) => {
   const navigate = useNavigate();
@@ -268,8 +301,7 @@ const CreateSessionModal = ({ onClose, onSuccess }) => {
       const response = await api.post('/cme/sessions', formData);
       
       if (response.data.session_id) {
-        // Navigate to the new session
-        navigate(`/cme/sessions/${response.data.session_id}`);
+        navigate(`/sessions/${response.data.session_id}`);
         onSuccess();
       }
     } catch (error) {
@@ -281,61 +313,61 @@ const CreateSessionModal = ({ onClose, onSuccess }) => {
   };
   
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">Create New CME Session</h2>
-          <p className="text-gray-600 mt-1">Set up a new CME analysis session</p>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 py-5 border-b border-slate-200">
+          <h2 className="text-xl font-bold text-slate-900">Create New CME Session</h2>
+          <p className="text-sm text-slate-600 mt-1">Set up a new medical examination analysis session</p>
         </div>
         
         <form onSubmit={handleSubmit} className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Patient ID *
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Patient ID <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                 value={formData.patient_id}
                 onChange={(e) => setFormData({ ...formData, patient_id: e.target.value })}
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Patient Name *
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Patient Name <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                 value={formData.patient_name}
                 onChange={(e) => setFormData({ ...formData, patient_name: e.target.value })}
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Examiner Name *
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Examiner Name <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                 value={formData.doctor_name}
                 onChange={(e) => setFormData({ ...formData, doctor_name: e.target.value })}
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                State *
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                State <span className="text-rose-500">*</span>
               </label>
               <select
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                 value={formData.state}
                 onChange={(e) => setFormData({ ...formData, state: e.target.value })}
               >
@@ -347,37 +379,37 @@ const CreateSessionModal = ({ onClose, onSuccess }) => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Exam Date *
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Exam Date <span className="text-rose-500">*</span>
               </label>
               <input
                 type="date"
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                 value={formData.exam_date}
                 onChange={(e) => setFormData({ ...formData, exam_date: e.target.value })}
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Case ID (Optional)
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Case ID
               </label>
               <input
                 type="text"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                 value={formData.case_id}
                 onChange={(e) => setFormData({ ...formData, case_id: e.target.value })}
               />
             </div>
             
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
                 Attorney Name
               </label>
               <input
                 type="text"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                 value={formData.attorney_name}
                 onChange={(e) => setFormData({ ...formData, attorney_name: e.target.value })}
               />
@@ -385,23 +417,23 @@ const CreateSessionModal = ({ onClose, onSuccess }) => {
           </div>
           
           {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+            <div className="mt-5 p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-sm">
               {error}
             </div>
           )}
           
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-slate-200">
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+              className="px-5 py-2.5 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
               disabled={creating}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition disabled:opacity-50"
+              className="px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg shadow-indigo-500/25 disabled:opacity-50"
               disabled={creating}
             >
               {creating ? 'Creating...' : 'Create Session'}
@@ -414,4 +446,3 @@ const CreateSessionModal = ({ onClose, onSuccess }) => {
 };
 
 export default CMEAnalysis;
-

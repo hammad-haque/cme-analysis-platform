@@ -6,6 +6,7 @@ Deploys all required AWS resources for the Florida happy-path implementation
 from aws_cdk import (
     Stack,
     Duration,
+    Size,
     aws_lambda as lambda_,
     aws_dynamodb as dynamodb,
     aws_s3 as s3,
@@ -206,7 +207,7 @@ class CMEAnalysisPlatformStack(Stack):
         api_lambda = lambda_.Function(
             self, "CMEAPIHandler",
             function_name="cme-api-handler",
-            runtime=lambda_.Runtime.PYTHON_3_12,
+            runtime=lambda_.Runtime.PYTHON_3_11,
             code=lambda_.Code.from_asset("../backend/lambda_functions"),
             handler="cme_handler.handler",
             timeout=Duration.seconds(30),
@@ -228,7 +229,7 @@ class CMEAnalysisPlatformStack(Stack):
         transcription_waiter_lambda = lambda_.Function(
             self, "TranscriptionWaiter",
             function_name="cme-transcription-waiter",
-            runtime=lambda_.Runtime.PYTHON_3_12,
+            runtime=lambda_.Runtime.PYTHON_3_11,
             code=lambda_.Code.from_asset("../backend/lambda_functions"),
             handler="transcription_waiter.handler",
             timeout=Duration.seconds(30),
@@ -243,7 +244,7 @@ class CMEAnalysisPlatformStack(Stack):
         nlp_lambda = lambda_.Function(
             self, "CMENLPProcessor",
             function_name="cme-nlp-processor",
-            runtime=lambda_.Runtime.PYTHON_3_12,
+            runtime=lambda_.Runtime.PYTHON_3_11,
             code=lambda_.Code.from_asset("../backend/lambda_functions"),
             handler="cme_nlp_processor.handler",
             timeout=Duration.minutes(5),
@@ -260,12 +261,12 @@ class CMEAnalysisPlatformStack(Stack):
         video_lambda = lambda_.Function(
             self, "CMEVideoProcessor",
             function_name="cme-video-processor",
-            runtime=lambda_.Runtime.PYTHON_3_12,
+            runtime=lambda_.Runtime.PYTHON_3_11,
             code=lambda_.Code.from_asset("../backend/lambda_functions"),
             handler="cme_video_processor.handler",
             timeout=Duration.minutes(15),
             memory_size=3008,
-            ephemeral_storage_size=lambda_.Size.gibibytes(10),  # For video processing
+            ephemeral_storage_size=Size.gibibytes(10),  # For video processing
             role=lambda_role,
             environment={
                 "S3_BUCKET": cme_bucket.bucket_name,
@@ -277,7 +278,7 @@ class CMEAnalysisPlatformStack(Stack):
         report_lambda = lambda_.Function(
             self, "CMEReportGenerator",
             function_name="cme-report-generator",
-            runtime=lambda_.Runtime.PYTHON_3_12,
+            runtime=lambda_.Runtime.PYTHON_3_11,
             code=lambda_.Code.from_asset("../backend/lambda_functions"),
             handler="cme_report_generator.generate_report",
             timeout=Duration.minutes(5),
@@ -365,7 +366,7 @@ class CMEAnalysisPlatformStack(Stack):
             nlp_lambda,
             video_lambda,
             report_lambda,
-            sessions_table.table_name
+            sessions_table
         )
         
         # Grant Step Function permissions to invoke Lambdas
